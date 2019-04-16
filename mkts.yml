@@ -51,8 +51,8 @@ bgworkers:
   - module: oandafeeder.so
     name: OandaFetcher
     config:
-      user: 
-      tokern: 
+      user: YOUR_OANDA_USER
+      token: YOUR_OANDA_TOKEN
       query_start: "2017-09-01 00:00"
       symbols: 
          - EUR_USD
