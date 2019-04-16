@@ -3,9 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
-	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -17,7 +15,6 @@ import (
 	"github.com/alpacahq/marketstore/utils/io"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/joho/godotenv"
 	goa "github.com/mg64ve/goanda"
 )
 
@@ -38,6 +35,9 @@ type FetcherConfig struct {
 	QueryStart string `json:"query_start"`
 	// such as 5Min, 1D.  defaults to 1Min
 	BaseTimeframe string `json:"base_timeframe"`
+        // User/Toker for Oanda API
+	User string `json:"user"`
+	Token string `json:"token"`
 }
 
 // OandaFetcher is the main worker instance.  It implements bgworker.Run().
@@ -46,6 +46,8 @@ type OandaFetcher struct {
 	symbols       []string
 	queryStart    time.Time
 	baseTimeframe *utils.Timeframe
+        oandaUser     string
+        oandaToken    string
 }
 
 func recast(config map[string]interface{}) *FetcherConfig {
@@ -85,11 +87,15 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 	if config.BaseTimeframe != "" {
 		timeframeStr = config.BaseTimeframe
 	}
+        oandaUser := config.User
+        oandaToken := config.Token
 	return &OandaFetcher{
 		config:        conf,
 		symbols:       symbols,
 		queryStart:    queryStart,
 		baseTimeframe: utils.NewTimeframe(timeframeStr),
+                oandaUser:     oandaUser,
+                oandaToken:    oandaToken,
 	}, nil
 }
 
@@ -123,13 +129,12 @@ func (oa *OandaFetcher) Run() {
 
 	symbols := oa.symbols
 	numBars := time.Duration(4999)
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	key := os.Getenv("OANDA_API_KEY")
-	accountID := os.Getenv("OANDA_ACCOUNT_ID")
+
+	key := oa.oandaToken
+	accountID := oa.oandaUser
+
 	client := goa.NewConnection(accountID, key, false)
+
 	timeStart = time.Time{}
 	for _, symbol := range symbols {
 		tbk := io.NewTimeBucketKey(symbol + "/" + oa.baseTimeframe.String + "/OHLCV")
@@ -229,18 +234,16 @@ func (oa *OandaFetcher) Run() {
 
 func main() {
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	key := os.Getenv("OANDA_API_KEY")
-	accountID := os.Getenv("OANDA_ACCOUNT_ID")
+
+	key := "YOUR_OANDA_TOKEN"
+	accountID := "YOUR_OANDA_USER"
+	symbol := "EUR_USD"
+
 	client := goa.NewConnection(accountID, key, false)
 
 	var rates []goa.Candles
 	numBars := time.Duration(4999)
 	granularity := "M1"
-	symbol := "EUR_USD"
 	timeStart := time.Date(2017, 12, 1, 0, 0, 0, 0, time.UTC)
 	timeEnd := timeStart.Add(time.Minute * numBars)
 	ts := timeStart.Unix()
